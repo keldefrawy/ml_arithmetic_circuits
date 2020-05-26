@@ -34,20 +34,10 @@ We compute inverse of a matrix $M$ by Gaussian Elimination. The naive technique 
 We estimate the complexity of computing the inverse via a naive algorithm that operates roughly as follows:
 \begin{itemize}
 	\item On the first pass through the matrix $M | I$, use Gaussian Elimination to make $M$ upper-triangular
-%	\begin{itemize}
-%		\item For each row $i$, compute the inverse of the first non-zero element. Scale the row by multiplication with this inverse. Cost: 1 inverse and 1 scalar vector multiplication (length $2n-i$). Depth: 2
-%		\item For each row $j<i$, eliminate the first term of the row by adding a multiple of row $i$. Cost: 1 additive inverse (first element of $j$), 1 scalar multiplication ($2n-i$ elements), and 1 vector addition (length $2n-i$). Depth: 3
-%	\end{itemize}
 	\item On the second pass through the matrix, use elimination operations and the fact that $M$ is upper triangular  to force $M$ into a diagonal. Then the inverse of $M$ is contained in $I$.
-%	\begin{itemize}
-%		\item For each row $j$ from $n-1$ to $0$
-%		\begin{itemize}
-%			\item For each row $i$ from $j$ downto $0$: zero the $j$th term in $M_{i}$ by adding a multiple of row $j$ to row $i$. Cost: 1 additive inverse (first element of $j$), 1 scalar multiplication $(length 2n-j)$, and 1 vector addition (length $2n-j$)
-%		\end{itemize}
-%	\end{itemize}
 \end{itemize}
-%\end{comment}
-
+To compute our estimate, we ignore the capability to swap rows during Gaussian Elimination. In the first pass, for each step $i$, we estimate the operations required to set the leading term in the $i$th row to 1 (via multiplying a vector of length $i+n$ by the inverse of the $i$th row's leading term). We estimate the operations required to subtract a multiple of the $i$th from every successive row in the augmented matrix in order to set the $i$th column below the $i$th row to 0. 
+In the second pass, we estimate a similar set of operations, but start with the $n$th term in the last row, and zero out the column above it. We proceed up the matrix, zeroing out the terms in the $j$th column above the $j$th row using multiplications and subtractions.
 
 \begin{itemize}
 	\item Computation: $n$ multiplicative inverses, $n^{2}+n(n-1)$ multiplications and subtractions
@@ -230,6 +220,7 @@ We proceed in the following steps
 
 
 \subsection{Computational Complexity of an Update}
+Using the method above to compute $\coefficients{\step+1}$ from the data and $\coefficients{\step}$ requires:
 
 \begin{itemize}
 	\item Computation:
