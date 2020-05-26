@@ -1,0 +1,273 @@
+
+
+\section{Circuits for Linear Operations}
+In this section we describe the circuits for linear operations such as matrix multiplication and matrix inverse. We consider the depths of the circuits as well as the numbers of additions and multiplications
+
+\subsection{Inner Product}
+We describe the circuit for inner product $\innerproduct{\vec{u}}{\vec{v}}$ between two vectors $\vec{u},\vec{v}$.
+Let $n$ be the length of $u$ (and $v$).
+
+The inner product can be computed by $n$ multiplications and $n-1$ additions.
+The depth of the circuit is $1$ for the multiplications and $\log_{2}(n)$ for the additions.
+\begin{enumerate}
+	\item Additions: $n-1$
+	\item Multiplications: $n$
+	\item Depth: 1 mult and $\log(n)$ additions
+\end{enumerate}
+
+\subsection{Matrix Multiplication}
+We consider the textbook matrix multiplication algorithm. For a multiplication of a $k \times n$ matrix by a $n \times m$ matrix, textbook matrix multiplication requires $km$ inner products of length $n$, all of which may be computed in parallel.
+The depth is therefore the depth of a single inner product (1 multiplication and $\log(n)$ additions).
+The computation requires $kmn$ multiplications and $km(n-1)$ additions.
+
+\begin{enumerate}
+	\item Additions: $km(n-1)$
+	\item Multiplications: $kmn$
+	\item Depth: 1 mult and $\log(n)$ additions (same as inner product)
+\end{enumerate}
+
+\subsection{Matrix Inverse}
+We compute inverse of a matrix $M$ by Gaussian Elimination. The naive technique is to augment $M$ by the identity matrix $I$, and proceed with elimination on the rows of $M | I$. Let $M$ be a $n \times n$ matrix. 
+
+
+
+We estimate the complexity of computing the inverse via a naive algorithm that operates roughly as follows:
+\begin{itemize}
+	\item On the first pass through the matrix $M | I$, use Gaussian Elimination to make $M$ upper-triangular
+%	\begin{itemize}
+%		\item For each row $i$, compute the inverse of the first non-zero element. Scale the row by multiplication with this inverse. Cost: 1 inverse and 1 scalar vector multiplication (length $2n-i$). Depth: 2
+%		\item For each row $j<i$, eliminate the first term of the row by adding a multiple of row $i$. Cost: 1 additive inverse (first element of $j$), 1 scalar multiplication ($2n-i$ elements), and 1 vector addition (length $2n-i$). Depth: 3
+%	\end{itemize}
+	\item On the second pass through the matrix, use elimination operations and the fact that $M$ is upper triangular  to force $M$ into a diagonal. Then the inverse of $M$ is contained in $I$.
+%	\begin{itemize}
+%		\item For each row $j$ from $n-1$ to $0$
+%		\begin{itemize}
+%			\item For each row $i$ from $j$ downto $0$: zero the $j$th term in $M_{i}$ by adding a multiple of row $j$ to row $i$. Cost: 1 additive inverse (first element of $j$), 1 scalar multiplication $(length 2n-j)$, and 1 vector addition (length $2n-j$)
+%		\end{itemize}
+%	\end{itemize}
+\end{itemize}
+%\end{comment}
+
+
+\begin{itemize}
+	\item Computation: $n$ multiplicative inverses, $n^{2}+n(n-1)$ multiplications and subtractions
+	\item Depth: $6n$ total depth. $3n$ multiplication, $2n$ subtraction, and $n$ multiplicative inverse (division).
+\end{itemize}
+
+
+\section{Logistic Regression}
+
+In this section we derive a circuit for computing logistic regression.
+We focus our analysis on computing a single iteration of the training function.
+
+
+\subsection{Notation}
+\begin{itemize}
+	\item $\point{i} = [\datum{i}^{(1)} ,\ldots, \datum{i}^{(\featurelen)}]$ is the feature vector of a datum. Implicitly $\featurelen$ is the length of the vector describing the datum.
+	\item $\truelabel{i} \in \bit$ is the label of $\point{i}$
+%\bennote{Note that rather than using base $e$ for our logarithms and exponents, as is traditional in statistics, we will do our estimates using base $2$ for efficiency.}
+
+\end{itemize}
+
+We assume that $\featurelen < \numdata$. If you don't have this, then you can't learn in every dimension of the input.
+
+
+\subsection{Newton's Method and Fisher Scoring}
+
+\paragraph{Newton's Method}
+
+Newton's method computes
+\begin{equation}
+	\coefficients{\step+1} = \coefficients{\step} - \hessian \gradient
+\end{equation}
+where
+\begin{itemize}
+	\item $\gradient$ is the gradient (first derivatives of the function we are computing)
+	\item $\hessian$ is the Hessian (matrix of second derivatives)
+	\item $\coefficients{\step} = [ \coeff_{0}^{(\step)}, \coeff_{1}^{(\step)},\ldots, \coeff_{\featurelen}^{(\step)} ]$ is the set of coefficients for step $\step$
+\end{itemize}
+
+However, computing a gradient is hard to do when you are only approximating the objective function, and computing a matrix of second derivatives is messy. Instead, we use Fisher Scoring, which gives a more manageable form of an update equation (that we can compute), and turns out to be equivalent to Newton's Method for our application.
+
+\paragraph{Fisher Scoring}
+Fisher Scoring allows us to express the update equation as:
+%We can transform the update from Newton's method to a more manageable form via Fisher Scoring, yielding the update equation
+\begin{equation}
+	\xdata\coefficients{\step+1} = \updatevector{\step}
+\end{equation}
+
+where $\updatevector{\step}$ describes the vector we use to update our coefficients in step $\ell$, and $\xdata$ is the training data. We transform this equation into one we can solve
+
+\begin{equation}
+	\transpose{\xdata}\wmatrix{\step}\xdata\coefficients{\step+1} = \transpose{\xdata} \wmatrix{\step} \updatevector{\step}
+\end{equation}
+which we manipulate to compute $\coefficients{\step+1}$ as
+\begin{equation}
+	\coefficients{\step+1} = \inversemat{(\transpose{\xdata}\wmatrix{\step}\xdata)}\transpose{\xdata} \wmatrix{\step}\updatevector{\step}
+\end{equation}
+
+where:
+\begin{itemize}
+
+	\item $\xdata$ is the matrix of training data
+
+	\item $\wmatrix{}$ is a diagonal weight matrix, defined below.
+
+	\item $\updatevector{\step}$ is an update vector (of length $\numdata$)
+\begin{equation*}
+	\updatevector{\step} =
+	\begin{pmatrix}
+		\currentprediction{\step}_{1} +
+		(\truelabel{1} - \logitestimate{\step}_{1})
+		\gfunction'(\logitestimate{\step}_{1}) \\
+		\vdots \\
+		\currentprediction{\step}_{n} +
+		 (\truelabel{\numdata} - \logitestimate{\step}_{\numdata})
+		 \gfunction'(\logitestimate{\step}_{\numdata})
+	\end{pmatrix}
+\end{equation*}
+
+\item $\currentprediction{\step}_{i}$ is the inner product of the features of $\point{i}$ with the coefficient vector $\coefficients{\step}$ in step $\step$
+	
+	\begin{equation*}
+	\currentprediction{\step}_{i} = \innerproduct{1 || \point{i}}{\coefficients{\step}}  =\coeff_{0}+x_{1}\coeff_{1}+\ldots+x_{\numdata}\coeff_{\numdata}
+\end{equation*}
+
+
+	\item $\logitestimate{\step}_{i}$ is the inverse of the logit function on $\currentprediction{\step}_{i}$
+
+\begin{equation}
+	\logitestimate{\step}_{i} = \frac{e^{\currentprediction{\step}_{i}}}{1+e^{\currentprediction{\step}_{i}}}
+\end{equation}
+
+	\item $\gfunction(\alpha)$ is the logit function $\log(\frac{\alpha}{1-\alpha})$. Then
+$\gfunction'(\alpha)$ is the derivative of the logit function, or $\frac{1}{\alpha}+ \frac{1}{1-\alpha}$.
+This can be approximated using Taylor Series.
+
+\end{itemize}
+
+
+\subsection{Computing an Update}
+As above, each iteration of the algorithm requires computing
+\begin{equation}
+	\coefficients{\step+1} = \inversemat{(\transpose{\xdata}\wmatrix{\step}\xdata)}\transpose{\xdata} \wmatrix{\step}\updatevector{\step}
+\end{equation}
+
+
+We proceed in the following steps
+\begin{enumerate}
+
+	\item Compute $\wmatrix{\step}$. 
+	 $\wmatrix{\step}$ is a $\numdata \times \numdata$ diagonal matrix, where
+	  $w_{i,i} = \currentprediction{\step}_{i}(1-\currentprediction{\step}_{i}) $. 
+	 We will show that $\currentprediction{\step_{i}}$ will be computed elsewhere; therefore, each element on the diagonal requires one additional multiplication and one subtraction to compute. It can be computed in a single layer of depth.
+	
+	\item Compute $\updatevector{\step}$.
+	For each entry in $\updatevector{\step}$, we express
+	\[
+		z^{(\step)}_{i} = \currentprediction{\step}_{i} +
+		 (\truelabel{i} - \logitestimate{\step}_{i})
+		 \gfunction'(\logitestimate{\step}_{i})
+	\]
+	we decompose this computation as follows:
+	\begin{itemize}
+		\item $\currentprediction{\step}_{i}$ is an inner product of dimension $\featurelen$
+		\item $\truelabel{i}$ is given by the data. 
+		\item $\logitestimate{\step}_{i} = \frac{e^{\logitestimate{\step}_{i}}}{1+e^{\logitestimate{\step}_{i}}}$ requires two exponentiations and a division. The exponentiations can be approximated by Taylor Series. %the base $e$ can be replaced by $2$.
+		\item $ \gfunction'(\logitestimate{\step}_{i})$ requires evaluating the derivative of the logit function at the point $\logitestimate{\step}_{i}$. The derivative of the logit function is $\gfunction'(\alpha) = \frac{1}{\alpha}+\frac{1}{1-\alpha}$. This requires two divisions, a subtraction, and an addition. 
+		\item Therefore, in total we require one inner product of dimension $k$, two exponentiations, two subtractions, two multiplications, 3 divisions, and three additions.
+	\end{itemize}
+	
+	These operations can be computed in parallel for each $z^{(\step)}_{i}$. The depth is therefore equal to the depth of computing a single element.
+	
+	\item Matrix Operations
+	\begin{enumerate}
+		\item 
+		Compute $U = \transpose{\xdata} \wmatrix{\step}$. $\xdata$ is a $\featurelen \times \numdata$ matrix  given by the training data. 
+		This step requires a multiplication of a $\featurelen \times \numdata$ matrix by a diagonal $\numdata \times \numdata$ matrix.
+		Therefore it requires only $\numdata \featurelen$ multiplications, all of which may be computed in parallel in a single layer of depth.
+	
+		We then have 
+		\begin{equation}
+		\coefficients{\step+1} = \inversemat{(U\xdata)}U\updatevector{\step}
+		\end{equation}
+
+		\item $U \xdata$ is a multiplication of a $\featurelen \times \numdata$ matrix by a $\numdata \times \featurelen$ matrix.
+		This requires $\featurelen^{2}\numdata$ multiplications and $\featurelen^{2}(\numdata-1) $ additions. 
+		The depth is 1 multiplication and $\log(\numdata-1)$ additions.
+		%\bennote{produces $\featurelen \times \featurelen$}
+	
+		\item Inverting a $\featurelen \times \featurelen$ using the Gaussian Elimination technique above requires
+		depth $6k$, $2k^{2} - k$ multiplications and subtractions, and 
+
+		\item $V = \inversemat{(U \xdata)}U$ is a multiplication of a $\featurelen \times \featurelen$ matrix with a $\featurelen \times \numdata$ matrix. 
+		%\bennote{yields $\featurelen \times \numdata$ }
+		
+		This requires $\featurelen^{2}\numdata$ multiplications and $\featurelen\numdata(\featurelen-1)$ additions. The depth is 1 multiplication and $\log(\featurelen-1)$ additions.
+	
+	
+		\item The final multiplication is $V \times \updatevector{\step}$.
+		$V$ is $\featurelen \times \numdata$ and $\updatevector{\step}$  is $\numdata \times 1$, yielding $\featurelen \times 1$.
+		
+		This requires $\featurelen$ inner products of dimension $\numdata$, which in parallel requires $\featurelen\numdata$ multiplications and $\featurelen(\numdata-1)$ additions, with depth $1$ multiplication and $\log(\numdata-1)$ additions.
+		
+		\item The total number of operations for the matrix operations is:
+		\begin{enumerate}
+			\item multiplications: 
+			%$nk + k^{2}n + 2k^{2} -k+ k^{2}n$
+			$(2n+2)k^{2} + (n-1)k $
+			\item additions: $k^{2}(n-1) + kn(k-1) + k(n-1)$ 
+			\item subtractions: $2k^{2} -k $ 
+			\item mult inverse/ divisions: $k$
+			\item multiplicative depth: $3k + 4 $
+			\item multiplicative inverse (division) depth: 1
+			\item additition depth: $ 2 \log(n-1) + \log(k-1)$ 
+			\item subtract depth: 2
+		\end{enumerate}
+	\end{enumerate}
+
+\end{enumerate}
+
+
+\subsection{Computational Complexity of an Update}
+
+\begin{itemize}
+	\item Computation:
+	\begin{itemize}
+		\item multiplicative inverse (division): $3n+k$
+		\item multiplications: $3n+ (2n+2)k^{2} + (n-1)k + k $
+		\item additions: $3n+ (k^{2}+k)(n-1) + (kn+1)(k-1)$
+		\item subtractions:  $2n + 2k^{2} -k+1$
+		\item exponentiation: $2n$
+	\end{itemize}
+	\item Depth:
+	\begin{itemize}
+		\item multiplicative inverse (division): $k+2$
+		\item multiplications: $3k+7$
+		\item additions: $ 2 \log(n-1) + 2\log(k-1) + 3$
+		\item subtractions: $5$
+		\item exponentiation: $1$
+	\end{itemize}
+	
+	%\item old comp:
+
+	%\begin{itemize}
+	%	\item $\featurelen^{2}(\numdata-1) + \featurelen\numdata(\featurelen-1)+\featurelen(\numdata-1)+ 2\featurelen^{3} + 3\numdata$ additions
+	%	\item $2\numdata+2\featurelen^{2}$  subtractions
+	%	\item $2\numdata+ 2\featurelen^{2}\numdata+2\featurelen\numdata + 2\featurelen^{2}$ multiplications
+	%	\item $2\numdata$ divisions
+	%	\item $2\numdata$ exponentiations
+	%\end{itemize}
+	%\item old Depth: 
+	%\begin{itemize}
+	%	\item depth $\featurelen^{2}+3$ multiplications
+	%	\item depth $2\log(\numdata-1)+\log(\featurelen-1)$ additions.	
+	%\end{itemize}
+\end{itemize}
+
+\subsection{Computational Complexity of Inference on a Point}
+This is an inner product. For a weight vector of length $k$ (note: this means the input $x$ has $k-1$ features), this is:
+\begin{itemize}
+	\item $k$ multiplications, $k-1$ additions
+	\item depth: 1 multiplication and $\log(k)$ additions
+\end{itemize}

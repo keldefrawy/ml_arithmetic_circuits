@@ -1,0 +1,350 @@
+
+\section{Convolutional Neural Network}
+
+In this section we derive a circuit for training data on a convolutional neural network.
+We proceed to analyze the circuit computing each type of layer in a network.
+
+\paragraph{Notation}
+We use the following notation for the dimensions of input volumes and filters, and for the parameters of a computation:
+\begin{itemize}
+	\item $\volwidth$ denotes the width of an input volume
+	\item $\volheight$ denotes the height of an input volume
+	\item $\voldepth$ denotes the depth of an input volume
+	\item $\numfilters$ denotes the number of filters in a layer (also defines the depth of the output volume)
+	\item $\spacial$ denotes the side length dimension of a filter
+	\item $\stride$ denotes the stride (we consider only $\stride=1$)
+	%\item $\padding$ denotes the padding size
+\end{itemize}
+
+Note that we will assume that every filter has dimension $\spacial \times \spacial \times \voldepth$, ie it can be represented as a $\voldepth$-depth matrix of sidelength $\spacial$.
+
+\subsection{Forward Computation}
+
+We separate the analysis for a forward computation of a CNN by analyzing each layer individually.
+
+\subsubsection{Convolution}
+A convolution layer is described by a series of dot products.
+For the sake of simplicity, we will assume that no padding is added to our input volumes. Padding entries do not need to be computed because they involve multiplication by 0.
+
+
+
+\paragraph{A Single-Layer Output Volume}
+
+To compute a single output volume from an input volume of dimension $\volwidth \times \volheight \times \voldepth$,
+we require $\voldepth (\volwidth-\spacial)(\volheight-\spacial)$ inner products, each of which has dimension $\spacial^{2}$.
+
+When fixing the location of the window on all $\voldepth$ slices of an input volume, the results of the $\voldepth$ inner products are then summed with an optional bias in order to produce a single element of the output volume.
+These can be treated as a single inner product of length $\voldepth \spacial^{2}$ with one extra addition. Therefore, each extended inner product requires $\voldepth \spacial^{2}$ multiplications, all of which may be computed in parallel, plus $\voldepth \spacial^{2}$ additions. The depth of the multiplications is therefore 1, and the depth of the additions is $\log(\voldepth \spacial^{2})$.
+
+Recall that we require $(\volwidth-\spacial)(\volheight-\spacial)$ extended inner products in parallel. Therefore, the total computation requires $(\volwidth-\spacial)(\volheight-\spacial)\voldepth \spacial^{2}$ multiplications and additions. The depth of the multiplications is 1 and the depths of the additions is $\log(\voldepth \spacial^{2})$.
+
+
+\begin{itemize}
+	\item Multiplications: $(\volwidth-\spacial)(\volheight-\spacial) \voldepth \spacial^{2}$
+	\item Additions: $(\volwidth-\spacial)(\volheight-\spacial) \voldepth \spacial^{2}$
+	\item Depth: 1 multiplication and $\log(\voldepth \spacial^{2})$ additions
+\end{itemize}
+
+\paragraph{$\numfilters$-Layer Output Volume}
+In a given layer, all output volumes can be computed in parallel from a single set of input volumes and different sets of filters.
+For a layer in which computing a single volume requires $m$ multiplications, $a$ additions, and has depth $d$,
+computing $\numfilters$ output volumes requires $m\numfilters$ multiplications and $a\numfilters$ additions, requiring depth $d$.
+
+Therefore, to compute an output volume of dimension $\numfilters$
+(which requires $\numfilters$ filters of dimension $\spacial \times \spacial \times \voldepth$),
+we simply multiply the complexity of a single-layer volume by $\numfilters$. The depth is the same.
+
+\begin{itemize}
+	\item Multiplications: $\numfilters$ times single-layer output volume
+	\item Additions: $\numfilters$ times single-layer output volume
+	\item Depth: same as single-layer output volume
+\end{itemize}
+
+%\todo[inline]{Ask Briland how these fit together}
+
+\subsubsection{RELU}
+The RELU operation is computed independently on every input. For an input volume of dimension $\volwidth \times \volheight \times \voldepth$, the RELU layer computes the activation function $\volwidth \times \volheight \times \voldepth$ times in parallel.
+
+\begin{itemize}
+	\item cost: $\volwidth \times \volheight \times \voldepth$ RELU function activations
+	\item depth: depth of a single RELU activation
+\end{itemize}
+
+Note that rather than compute a $\max$ as the activation function for RELU, it is more efficient for an arithmetic circuit to compute RELU via squaring. Each squaring requires a single multiplication.
+
+
+\subsubsection{Pooling (Average)}
+A pooling operation decreases the dimension of the data by reducing every window of the output in the dimension of the pooling operator to a single element.
+
+We discuss pooling a volume with the following dimensions and parameters:
+\begin{itemize}
+	\item $\volwidth$ is the width
+	\item $\volheight$ is the height
+	\item $\voldepth$ is the depth
+	\item $\spacial$ is the spacial dimension (the width and height of the pool window)
+	\item $\stride$ is the stride. We assume $\stride=\spacial$ (as in our problem)
+\end{itemize}
+
+To compute an average pooling of a single-depth volume where the pool operator has dimension $\spacial \times \spacial \times 1$ (as is our case), we compute $(\frac{\volwidth}{\spacial} \times \frac{\volheight}{\spacial})$ pools of $\spacial^{2}$ elements. Computing the average of each pool requires $\spacial^{2}-1 $ additions and a single division by a known constant, which can be expressed as a scalar multiplication. We will not consider the cost of the modular inverse because it is known and can be computed beforehand without encryption.  
+
+Therefore, for a single layer of the input volume, we require $(\frac{\volwidth}{\spacial} \times \frac{\volheight}{\spacial})$ pools of $\spacial^{2}-1 $ additions additions and a single multiplication. Each has depth $\log(\spacial^{2})$ for the additions and one layer of depth for the multiplication.
+For clean presentation, we consider each pool to require  $\spacial^{2}$ additions with depth $\log(\spacial^{2})$ additions additions and one multiplication.
+
+\begin{itemize}
+	\item Multiplications: $\voldepth\frac{\volwidth}{\spacial}\frac{\volheight}{\spacial}$
+	\item Additions: $ \volwidth \volheight \voldepth$
+	\item Depth: $\log(\spacial^{2})$ additions and $1$ multiplication
+\end{itemize}
+
+
+%\subsection{Flatten}
+%This simply rearranges data. It is not computational.
+
+\subsubsection{Fully Connected Layer}
+A fully connected layer maps a flattened set of neurons to a series of outputs. Let the flattened vector have dimension $f$ and the output have dimension $d$.
+Then the fully connected layer performs $d$ inner products over vectors of dimension $f$. 
+\begin{itemize}
+	\item Multiplications: $fd$ 
+	\item Additions: $f(d-1)$
+	\item Depth: 1 multiplication and $\log(f-1)$ additions
+\end{itemize}
+
+\subsection{Back-propagation}
+Back-propagation is the process by which we update the filters used in our convolutional neural network, including the weights in each convolutional layer  and the fully connected layer. Specifically, it is the recursive application of the chain rule over the entire computation graph, in reverse order. 
+For our analysis, we refer to the following as a reference: \url{https://cs231n.github.io/optimization-2/}
+
+The purpose of back-propagation is to update the contents of our filter layers.
+During back-propagation, each element in every filter is updated by subtracting the product of the learning rate and the node's gradient from the current filter value. 
+We will consider the learning rate to be fixed. Then each back propagation operation requires computing a gradient and an update. 
+
+\paragraph{Weight Update}
+A weight update follows the $\newweight = \oldweight - \backpropgradient \learningrate$, where $\newweight$ is the filter element's new weight, $\oldweight$ is the element's old weight, $\backpropgradient$ is the gradient flowing to the element from all of its computation nodes, and $\learningrate$ is the learning rate of the network.
+
+\paragraph{Computing a Gradient}
+Back-propagation of loss through the network involves propagating the gradient from each node to its inputs via the chain rule.
+We can assume that a CNN stores intermediate values at every node in the computational graph. Then given the gradient on the output of the node, computing the gradient on the input of the node is a single multiplication. To propagate the loss for an input, we multiplying the node's loss by the gradient, which contributes one more multiplication.
+
+In our analysis we assume each computational node in a convolution or fully connected layer has two inputs.
+
+
+%\subsubsection{Propagating Loss Through the Computational Graph}
+%We analyze the basic operations involved for propagating gradient through a single filter element, plus the cost of an update.
+
+
+\paragraph{Base Back-Propagation (for a single filter node with two inputs)}
+\begin{itemize}
+	\item Gradients with respect to both inputs: 2 Multiplications
+	\item Propagation of Gradient to both inputs: 2 Multiplications
+	\item Weight Update: 1 Multiplication + 1 Addition
+	\item Total: 5 Mult, 1 Add
+	\item Depth: 5 Mult, 1 Add
+\end{itemize}
+
+For filter elements that have outdegree more than 1, the vertex's gradient is the sum of its constituent parts. Therefore, we must account for the gradient sum of any node that has multiple outputs.
+
+\paragraph{Gradient Sum for a node with outdegree $k$}
+\begin{itemize}
+	\item $k$ additions, $\log(k)$ depth 
+\end{itemize}
+
+\subsubsection{Fully Connected Layer}
+
+\paragraph{Computing Loss:}
+In the fully connected layer, the loss is easily computed as the difference between the predicted value by forward evaluation and the true label. This requires a single subtraction (or addition) per output.
+\begin{itemize}
+	\item $d$ additions (subtractions)
+	\item depth: 1 addition
+\end{itemize}
+
+\paragraph{Gradient Propagation}
+To propagate the gradient to each filter node from the output, we require a single base back-propagation \emph{for each multiplication and addition node} in the forward direction. For a dimension-$f$ flattened vector and $d$ outputs on the network, there are $fd$ multiplications and $f(d-1)$ addition nodes. Therefore, for gradient propagation we require.
+\begin{itemize}
+	\item Computation: $5fd$ multiplications, $f(d-1)$ additions
+	\item Depth: $5$ mult, 1 add
+\end{itemize}
+
+\paragraph{Sum the gradient contributions:}
+The weights used for the fully connected layer are applied via inner product with the flattened output of the last activation layer. 
+For a fully connected layer of dimension $f$ for which there are $d$ output nodes, each weight in the vector of dimension $f$ is connected to $d$ outputs. Therefore, computing the gradient contribution of a single filter node requires a sum of $d$ elements. This can be done in $\log(d)$ depth.
+%Therefore, to only sum the gradient contributions for a single fully-connected layer where each weighted vector has dimension $f$ and there are $d$ outputs:
+\begin{itemize}
+	\item Compute: $f(d-1)$ additions
+	\item Depth: $\log(d)$ additions
+\end{itemize}
+
+
+
+\paragraph{Fully Connected Layer Total}
+For a layer with weights of dimension $f$ and $d$ outputs:
+\begin{itemize}
+	\item Computation: $5fd$ mult, $2f(d-1)+d$ additions
+	\item Depth: 5 mult, $\log(d)+2$ add
+\end{itemize}
+
+\subsubsection{Convolution Layer}
+To understand the amount of computation required by back-propagation in a convolution, we separate the analysis into understanding the gradient propagation for each node, plus summing the gradient contributions for each node.
+
+\paragraph{Gradient Propagation}:
+Similarly to the fully connected layer, we must perform a ``base gradient propagation'' for each multiplication and addition node in the forward direction. For
+ a convolution layer with dimensions $\volwidth \times \volheight \times \voldepth \times \spacial \times \numfilters$, there are $K(\volwidth-\spacial)(\volheight-\spacial)\voldepth\spacial^{2}$  multiplication nodes and the same number of addition nodes. This requires:
+\begin{itemize}
+	\item Computation: $10K(\volwidth-\spacial)(\volheight-\spacial)\voldepth\spacial^{2}$  Multiplications,
+	$2K(\volwidth-\spacial)(\volheight-\spacial)\voldepth\spacial^{2}$ additions
+	\item Depth: 5 Mul, 1 Addition
+\end{itemize}
+
+\paragraph{Sum the gradient contributions}
+In convolutional layer,
+each filter element is multiplied once via an inner product with every window of the input volume. There are $(\volwidth-\spacial)(\volheight-\spacial)$ such windows, which means each element of the output volume has outdegree $(\volwidth-\spacial)(\volheight-\spacial)$. Therefore, summing the gradient contributions of a single filter element requires $(\volwidth-\spacial)(\volheight-\spacial)$ additions. 
+Because there are $\numfilters * \spacial^{2}$ such filter elements, we require:
+\begin{itemize}
+	\item Compute: $(\volwidth-\spacial)(\volheight-\spacial) \numfilters \spacial^{2}$ additions
+	\item Depth: $\log((\volwidth-\spacial)(\volheight-\spacial))$ additions
+\end{itemize}
+
+
+\paragraph{Total}
+\begin{itemize}
+	\item Multiplications: $10K(\volwidth-\spacial)(\volheight-\spacial)\voldepth\spacial^{2}$  
+
+	\item Additions:
+	$2K(\volwidth-\spacial)(\volheight-\spacial)\voldepth\spacial^{2}$ +
+	$\numfilters (\volwidth-\spacial)(\volheight-\spacial) \spacial^{2}$ 
+
+	\item 
+	Depth: 5 Mul,  $\log((\volwidth-\spacial)(\volheight-\spacial))+1$ additions
+
+\end{itemize}
+
+
+\subsubsection{Mean Pooling}
+A mean pooling node distributes error evenly to each of its inputs. Therefore, for a pooling node with $n$ inputs, each input receives $\frac{1}{n}$ of the pool node's error. The error distributed by a pooling node can be computed with a single division by a fixed constant, which can be achieved with a single multiplication.
+
+\begin{enumerate}
+	\item Computation: $\frac{\volwidth}{\spacial}\frac{\volheight}{\spacial}\voldepth $ multiplications by fixed constant.
+	\item Depth: 1 multiplication
+\end{enumerate}
+
+
+\subsubsection{ReLU}
+When using ReLU by squaring, the gradient of a node can be computed with a single multiplication by a known constant (the derivative of $x^{2}$ is $2x$).
+
+\begin{enumerate}
+	\item Computation: $\volwidth\volheight\voldepth$ multiplications by fixed constant.
+	\item Depth: 1 multiplication
+\end{enumerate}
+
+\subsection{Estimates for our CNN}
+
+The CNN we evaluate is in Figure \ref{fig:cnn-baa}. We translate the parameters into our form in Figure \ref{fig:cnn-params}
+
+
+\begin{figure}[h!]
+\includegraphics[width=\textwidth]{figs/cnn}
+\caption{CNN in the DPRIVE BAA}
+\label{fig:cnn-baa}
+\end{figure}
+
+
+\begin{figure}
+\begin{tabular}{m{8em} | m{3em} m{3em} m{3em} m{3em} m{3em}}
+Type 	& W	&	H	& D	&	F&	K  \\ \hline
+Conv	32	&32	& 	32&	3	&	3&	64 \\
+RELU	&32	&	32&	64\\		
+Conv	32	&32	&	32	&	64&	3&	64\\
+RELU	&32	&	32&	64\\		
+Mean Pool&32&	32&	64&	2\\	
+Conv	16	&16&	16&	64&	3&	64\\
+RELU	&16&	16&	64\\		
+Conv	16	&16	&	16&	64&	3&	64\\
+RELU	&16&	16&	64\\		
+Mean Pool	&16&	16&	64&	2\\	
+Conv	8	&8	&8&	64&	3&	64\\
+RELU	&8&	8&	64\\		
+Conv	8	&8	&	8&	64&	1&	64\\
+RELU	&8	&	8&	64\\		
+Conv	8	&8	&	8&	16&	1&	16\\
+RELU	&8&	8&	16\\		
+Fully Connected	&8&	8&	16		
+\end{tabular}
+\caption{Parameters of the given CNN. $\volwidth$ denotes the width of an input volume, $\volheight$ denotes the height, $\voldepth$ denotes the depth.
+$\numfilters$ denotes the number of filters in a layer (and the depth of the output volume), and $\spacial$ denotes the side length dimension of a filter.}
+\label{fig:cnn-params}
+\end{figure}
+
+\paragraph{Forward Direction}
+
+Using the analysis above, we estimate that we can compute the forward direction of this CNN layer by layer, as in Figure \ref{fig:ops-per-layer-and-total}. \\
+\begin{figure}[h!]
+\begin{tabular}{ m{7em} | m{7em} m{7em} m{5em} m{5em} }
+Layer & Multiply & Addition & Depth Mul & Depth Add \\ \hline
+Conv & 1,453,248 &	1,453,248 & 1 &	5 \\
+ReLU & 65,536	 & 0&	1&	0 \\
+Conv & 31,002,624 &	31,002,624&	1&	10 \\
+ReLU & 65,536	& 0& 	1	& 0 \\
+Mean Pool & 16,384	& 65,536	& 1& 	2\\
+Conv & 6,230,016 & 	6,230,016 & 	1	& 10 \\
+ReLU & 16,384	& 0	& 1 &	0 \\
+Conv & 6,230,016 &	6,230,016	&1	&10 \\
+ReLU & 16,384 & 	0 &	1	& 0 \\
+Mean Pool & 4096 &	16,384 & 	1& 	2\\
+Conv & 921,600 & 	921,600 &	1 &	10 \\
+ReLU & 4096 &	0	&1 &	0 \\
+Conv & 200,704 &	200,704	&1	& 8\\
+ReLU & 4096 &	0 &	1&  	0\\
+Conv & 12,544	& 12,544 &	1	& 6\\
+ReLU & 1024	& 0	& 1 &	0\\
+Connected & 1024 &	960	& 1 &	6 \\ \hline
+Total & 46,245,312 &	46,133,632 &	17&	69
+\end{tabular}
+\caption{Operations per layer in the forward direction of our CNN}
+\label{fig:ops-per-layer-and-total}
+\end{figure}
+
+\paragraph{Back Propagation}
+
+In Figure \ref{fig:ops-per-backwards-layer-and-total} we present our estimate for the number of operations in back propagation on a single backwards pass through the neural network.
+
+\begin{figure}[h]
+\begin{tabular}{ m{9em} | m{7em} m{7em} m{5em} m{5em} }
+Layer & Multiply & Addition & Depth Mul & Depth Add \\ \hline
+Conv & 14,532,480 & 3,390,912	& 5	& 11 \\
+ReLU & 65,536	&	0	&	1	&	0 \\
+Conv & 310,026,240&	62,489,664	&5&	11 \\
+ReLU & 65,536	&	0	&	1	&	0\\
+Mean Pool & 16,384 &0	&	1	&	0\\
+Conv & 62,300,160 &	12,557,376	 &5	 & 9\\
+ReLU & 16,384	&	0	&	1	&	0\\
+Conv & 62,300,160 &	12,557,376 &	5	& 9 \\
+ReLU & 16,384	&	0	&	1	&	0 \\
+Mean Pool & 4096	& 0	&	1	&	0 \\
+Conv & 9,216,000 &	1,857,600&	5&	6\\
+ReLU & 4096	&	0	&	1&	0\\
+Conv & 2,007,040	& 404,544&	5&	7\\
+ReLU & 4096	&0	&	1	&	0\\
+Conv & 125,440		&25,872	 &5	&7 \\
+ReLU & 1024	&	0&	1&	0 \\
+Fully Connected & 51,200	& 18,442& 	5&	6 \\ \hline
+Total & 460,752,256	&	93,301,786&	49&	66
+\end{tabular}
+
+
+\caption{Operations per layer in the backward direction of our CNN.}
+\label{fig:ops-per-backwards-layer-and-total}
+\end{figure}
+
+
+\subsubsection{Classification/Inference of one image} 
+In our problem, we assume that the weights are known but the images are encrypted. 
+This is one forward evaluation of the CNN as above. 
+Refer to Figure \ref{fig:ops-per-layer-and-total}.
+
+\subsubsection{Back Propagation of One Iteration}
+We additionally assume that weights are encrypted as they are being trained.
+For one backward evaluation of the CNN above, refer to
+Figure \ref{fig:ops-per-backwards-layer-and-total}
+
+
+\subsubsection{Training a CNN}
+For a fixed number of iterations $\ell$,
+training requires one forward pass and one backpropagation pass per iteration.

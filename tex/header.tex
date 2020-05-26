@@ -1,0 +1,51 @@
+%
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{todonotes,enumitem,comment,array}
+%
+
+
+\newcommand{\bennote}[1]{{\color{violet} #1 }}
+
+\newcommand{\bit}{\{ 0,1\}}
+\newcommand{\innerproduct}[2]{\langle #1 , #2 \rangle}
+
+% 
+% logistic regression
+\newcommand{\coeff}{\beta}
+\newcommand{\coefficients}[1]{\vec{\coeff}^{(#1)}}
+\newcommand{\updatevector}[1]{\vec{z}^{(#1)}}
+\newcommand{\gradient}{\vec{u}}
+\newcommand{\hessian}{\mathcal{H}}
+\newcommand{\currentprediction}[1]{\eta^{(#1)}}
+\newcommand{\truelabel}[1]{y_{#1}}
+\newcommand{\wmatrix}[1]{W^{(\step)}}
+\newcommand{\feature}{x}
+\newcommand{\datum}[1]{\feature_{#1}}
+\newcommand{\point}[1]{\vec{\feature}_{#1}}
+\newcommand{\xdata}{X}
+\newcommand{\transpose}[1]{#1^{T}}
+\newcommand{\inversemat}[1]{#1^{-1}}
+\newcommand{\step}{\ell}
+\newcommand{\gfunction}{g}
+\newcommand{\logitestimate}[1]{\mu^{(#1)}}
+\newcommand{\numdata}{n}
+\newcommand{\featurelen}{k}
+
+% Convolutional Neural Network
+% 
+\newcommand{\volwidth}{W}
+\newcommand{\volheight}{H}
+\newcommand{\voldepth}{D}
+\newcommand{\numfilters}{K}
+\newcommand{\stride}{S}
+\newcommand{\padding}{P}
+\newcommand{\spacial}{F}
+\newcommand{\numlayers}{\ell}
+
+\newcommand{\weight}{w}
+\newcommand{\newweight}{w_{\mathsf{new}}}
+\newcommand{\oldweight}{w_{\mathsf{old}}}
+\newcommand{\backpropgradient}{\Delta}
+\newcommand{\learningrate}{r}
+
